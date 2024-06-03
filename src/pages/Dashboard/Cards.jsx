@@ -543,7 +543,7 @@ const Cards = () => {
                               onClick={() => handlePageChange(index + 1)}
                               className={`${
                                 currentPage === index + 1
-                                  ? "dark:bg-btnGold dark:text-neutral-900 dark:border-btnGold dark:hover:bg-btnGold"
+                                  ? "dark:bg-gold dark:text-neutral-900 dark:hover:bg-gold"
                                   : ""
                               } py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-gold dark:text-gold dark:hover:bg-neutral-800`}
                             >
