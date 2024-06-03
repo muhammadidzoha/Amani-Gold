@@ -4,7 +4,7 @@ import Table from "../../components/ui/Table";
 import { BASE_URL, USERS } from "../../config";
 import { useNavigate } from "react-router-dom";
 import useSWR, { mutate } from "swr";
-import { Plus, X, FolderOutput } from "lucide-react";
+import { Plus, X, FolderOutput, Trash2 } from "lucide-react";
 import Input from "../../components/ui/Input";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
@@ -141,8 +141,6 @@ const columnData = ({ mutate, navigate }) => [
         },
         onSubmit,
       });
-
-      console.log(values);
 
       const handleEdit = async (id) => {
         setValues({
@@ -304,6 +302,45 @@ const Users = () => {
   const columns = columnData({ mutate, navigate });
   const processedData = preprocessData(data);
 
+  const handleDeleteAll = async () => {
+    try {
+      const auth = JSON.parse(sessionStorage.getItem("auth"));
+      if (!auth) {
+        navigate("/auth/login");
+        return;
+      }
+
+      const response = await axios.delete(`${BASE_URL}/${USERS}`, {
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+        withCredentials: true,
+      });
+
+      mutate("users");
+
+      toast.success(response.data.message, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: false,
+        draggable: true,
+        progress: undefined,
+      });
+    } catch (error) {
+      toast.error(error.response.data.message, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: false,
+        draggable: true,
+        progress: undefined,
+      });
+    }
+  };
+
   const exportToExcel = async () => {
     if (!data) return;
 
@@ -426,6 +463,18 @@ const Users = () => {
                         >
                           <FolderOutput size="16px" />
                           Export To CSV
+                        </button>
+                      )}
+                      {!data ? (
+                        <div className="animate-pulse w-28 h-10 bg-neutral-500 rounded-lg self-center"></div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleDeleteAll}
+                          className="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-gradient-to-r from-btnGold to-btnGold text-neutral-800 hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          <Trash2 size="16px" />
+                          Delete User And Card
                         </button>
                       )}
                       <div

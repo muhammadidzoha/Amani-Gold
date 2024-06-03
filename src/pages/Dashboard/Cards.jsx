@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import Input from "../../components/ui/Input";
-import { Plus, X, FolderOutput } from "lucide-react";
+import { Plus, X, FolderOutput, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { BASE_URL, CARDS } from "../../config";
+import { BASE_URL, CARDS, USERS } from "../../config";
 import useSWR, { mutate } from "swr";
 import axios from "axios";
 import Table from "../../components/ui/Table";
@@ -72,6 +72,10 @@ const columnData = [
 const Cards = () => {
   const navigate = useNavigate();
 
+  const [open, setOpen] = useState(false);
+  const [selectedOption, setSelectedOption] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
   const fetcher = async () => {
     const auth = JSON.parse(sessionStorage.getItem("auth"));
     if (!auth) {
@@ -88,7 +92,24 @@ const Cards = () => {
     return response.data;
   };
 
-  const { data } = useSWR("cards", fetcher);
+  const users = async () => {
+    const auth = JSON.parse(sessionStorage.getItem("auth"));
+    if (!auth) {
+      navigate("/auth/login");
+      return;
+    }
+
+    const response = await axios.get(`${BASE_URL}/${USERS}/all`, {
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+      },
+      withCredentials: true,
+    });
+    return response.data;
+  };
+
+  const { data: card } = useSWR("cards", fetcher);
+  const { data: user } = useSWR("users", users);
 
   const onSubmit = async (values) => {
     try {
@@ -100,6 +121,7 @@ const Cards = () => {
 
       const send = {
         ...values,
+        user: selectedOption,
         weight: parseFloat(values.weight),
         fineness: parseInt(values.fineness),
       };
@@ -118,7 +140,7 @@ const Cards = () => {
         form: "",
         fineness: "",
       });
-      
+
       mutate("cards");
       HSOverlay.close(document.getElementById("hs-modal-cards"));
       toast.success(response.data.message, {
@@ -150,6 +172,7 @@ const Cards = () => {
     handleSubmit,
     isSubmitting,
     setValues,
+    setFieldValue,
   } = useFormik({
     initialValues: {
       user: "",
@@ -161,10 +184,58 @@ const Cards = () => {
     onSubmit,
   });
 
-  const exportToExcel = async () => {
-    if (!data) return;
+  const filteredUsers = user?.filter((user) =>
+    user.Name_UA.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-    const excelData = data.map((item, index) => ({
+  const handleOptionClick = (value) => {
+    setSelectedOption(value);
+    setOpen(false);
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      const auth = JSON.parse(sessionStorage.getItem("auth"));
+      if (!auth) {
+        navigate("/auth/login");
+        return;
+      }
+
+      const response = await axios.delete(`${BASE_URL}/${CARDS}`, {
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+        withCredentials: true,
+      });
+
+      mutate("cards");
+
+      toast.success(response.data.message, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: false,
+        draggable: true,
+        progress: undefined,
+      });
+    } catch (error) {
+      toast.error(error.response.data.message, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: false,
+        draggable: true,
+        progress: undefined,
+      });
+    }
+  };
+
+  const exportToExcel = async () => {
+    if (!card) return;
+
+    const excelData = card.map((item, index) => ({
       NO: index + 1,
       USER: item.UUID_UA,
       SERI: item.Seri_CD,
@@ -215,7 +286,7 @@ const Cards = () => {
                         <Plus size="16px" />
                         Add Card
                       </button>
-                      {!data ? (
+                      {!card ? (
                         <div className="animate-pulse w-28 h-10 bg-neutral-500 rounded-lg self-center"></div>
                       ) : (
                         <button
@@ -225,6 +296,20 @@ const Cards = () => {
                         >
                           <FolderOutput size="16px" />
                           Export To CSV
+                        </button>
+                      )}
+                      {!card ? (
+                        <div className="animate-pulse w-28 h-10 bg-neutral-500 rounded-lg self-center"></div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleDeleteAll}
+                          className={`${
+                            card.length === 0 ? "hidden" : "block"
+                          } py-2 px-3 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-gradient-to-r from-btnGold to-btnGold text-neutral-800 hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none`}
+                        >
+                          <Trash2 size="16px" />
+                          Delete All Card
                         </button>
                       )}
 
@@ -250,17 +335,74 @@ const Cards = () => {
                             </div>
                             <form onSubmit={handleSubmit}>
                               <div className="p-4 overflow-y-auto">
-                                <Input
-                                  htmlFor="user"
-                                  title="UUID"
-                                  type="text"
-                                  id="user"
-                                  name="user"
-                                  onChange={handleChange}
-                                  onBlur={handleBlur}
-                                  value={values.user}
-                                  placeholder="Input your UUID"
-                                />
+                                {!user ? (
+                                  <div className="animate-pulse w-full h-10 bg-neutral-500 rounded-lg self-center"></div>
+                                ) : (
+                                  <div onClick={() => setOpen(!open)}>
+                                    <label
+                                      htmlFor="user"
+                                      className="block text-sm font-medium mb-3 dark:text-gold"
+                                    >
+                                      UUID
+                                    </label>
+                                    <button
+                                      type="button"
+                                      className="relative py-3 px-4 pe-9 flex text-nowrap w-full cursor-pointer bg-white border dark:border-neutral-700 dark:text-neutral-500 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 rounded-lg text-start text-sm dark:bg-neutral-900 disabled:opacity-50 disabled:pointer-events-none focus:border-gold focus:ring-gold"
+                                    >
+                                      <span className="text-neutral-400">
+                                        {selectedOption
+                                          ? user.find(
+                                              (item) =>
+                                                item.UUID_UA === selectedOption
+                                            )?.Name_UA
+                                          : "Select UUID By Name"}
+                                      </span>
+                                      <svg
+                                        className="absolute top-1/2 end-3 -translate-y-1/2 flex-shrink-0 size-3.5 text-gray-500"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="24"
+                                        height="24"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      >
+                                        <path d="m7 15 5 5 5-5" />
+                                        <path d="m7 9 5-5 5 5" />
+                                      </svg>
+                                    </button>
+                                    {open && (
+                                      <div className="mt-2 max-h-72 pb-1 px-1 space-y-0.5 z-20 w-full bg-neutral-900 rounded-lg overflow-hidden overflow-y-auto border border-neutral-700">
+                                        <div className="bg-neutral-900 p-2 -mx-1 sticky top-0">
+                                          <input
+                                            type="text"
+                                            placeholder="search"
+                                            className="block w-full bg-neutral-900 text-sm border-neutral-700 rounded-lg focus:border-gold focus:ring-gold py-2 px-3 text-neutral-400"
+                                            autoFocus
+                                            value={searchTerm}
+                                            onChange={(e) =>
+                                              setSearchTerm(e.target.value)
+                                            }
+                                          />
+                                        </div>
+                                        {filteredUsers.map((user) => (
+                                          <div
+                                            key={user.UUID_UA}
+                                            onClick={() =>
+                                              handleOptionClick(user.UUID_UA)
+                                            }
+                                            className="py-2 px-4 w-full text-sm text-neutral-200 cursor-pointer hover:bg-neutral-700 rounded-lg"
+                                          >
+                                            <span>{user.Name_UA}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
                                 <Input
                                   htmlFor="seri"
                                   title="Seri"
@@ -324,7 +466,7 @@ const Cards = () => {
                 </div>
                 {/* <!-- End Header --> */}
 
-                {!data ? (
+                {!card ? (
                   <div className="flex animate-pulse p-2">
                     <div className="ms-4 my-2 w-full">
                       <p
@@ -343,7 +485,7 @@ const Cards = () => {
                 ) : (
                   <>
                     {/* <!-- Table --> */}
-                    <Table columnsData={columnData} tableData={data || []} />
+                    <Table columnsData={columnData} tableData={card || []} />
                     {/* <!-- End Table --> */}
 
                     {/* <!-- Footer --> */}
@@ -351,7 +493,7 @@ const Cards = () => {
                       <div>
                         <p className="text-sm text-gray-600 dark:text-neutral-400">
                           <span className="font-semibold text-gray-800 dark:text-gold">
-                            {data?.length}
+                            {card?.length}
                           </span>{" "}
                           results
                         </p>
