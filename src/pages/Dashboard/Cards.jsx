@@ -12,13 +12,13 @@ import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-const columnData = [
+const columnData = ({ startIndex }) => [
   {
     accessorKey: "",
     header: "NO",
     cell: (props) => (
       <span className="text-sm text-gray-500 dark:text-neutral-400">
-        {props.row.index + 1}
+        {startIndex + props.row.index + 1}
       </span>
     ),
   },
@@ -75,6 +75,8 @@ const Cards = () => {
   const [open, setOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetcher = async () => {
     const auth = JSON.parse(sessionStorage.getItem("auth"));
@@ -172,7 +174,6 @@ const Cards = () => {
     handleSubmit,
     isSubmitting,
     setValues,
-    setFieldValue,
   } = useFormik({
     initialValues: {
       user: "",
@@ -257,6 +258,16 @@ const Cards = () => {
     });
     saveAs(blob, "Cards.xlsx");
   };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const totalPages = Math.ceil((card?.length || 0) / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentData = card?.slice(startIndex, startIndex + itemsPerPage);
+
+  const columns = columnData({ startIndex });
 
   return (
     <div className="w-full lg:ps-64">
@@ -485,7 +496,10 @@ const Cards = () => {
                 ) : (
                   <>
                     {/* <!-- Table --> */}
-                    <Table columnsData={columnData} tableData={card || []} />
+                    <Table
+                      columnsData={columns}
+                      tableData={currentData || []}
+                    />
                     {/* <!-- End Table --> */}
 
                     {/* <!-- Footer --> */}
@@ -500,10 +514,12 @@ const Cards = () => {
                       </div>
 
                       <div>
-                        <div className="inline-flex gap-x-2">
+                        <nav className="inline-flex rounded-md shadow-sm isolate space-x-2">
                           <button
                             type="button"
                             className="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-gold dark:text-gold dark:hover:bg-neutral-800"
+                            disabled={currentPage === 1}
+                            onClick={() => handlePageChange(currentPage - 1)}
                           >
                             <svg
                               className="flex-shrink-0 size-4"
@@ -521,10 +537,23 @@ const Cards = () => {
                             </svg>
                             Prev
                           </button>
-
+                          {Array.from({ length: totalPages }, (_, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handlePageChange(index + 1)}
+                              className={`${
+                                currentPage === index + 1
+                                  ? "dark:bg-btnGold dark:text-neutral-900 dark:border-btnGold dark:hover:bg-btnGold"
+                                  : ""
+                              } py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-gold dark:text-gold dark:hover:bg-neutral-800`}
+                            >
+                              {index + 1}
+                            </button>
+                          ))}
                           <button
                             type="button"
                             className="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-gold dark:text-gold dark:hover:bg-neutral-800"
+                            onClick={() => handlePageChange(currentPage + 1)}
                           >
                             Next
                             <svg
@@ -542,7 +571,7 @@ const Cards = () => {
                               <path d="m9 18 6-6-6-6" />
                             </svg>
                           </button>
-                        </div>
+                        </nav>
                       </div>
                     </div>
                     {/* <!-- End Footer --> */}

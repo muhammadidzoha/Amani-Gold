@@ -12,13 +12,13 @@ import { HSOverlay } from "preline";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-const columnData = ({ mutate, navigate }) => [
+const columnData = ({ mutate, navigate, startIndex }) => [
   {
     accessorKey: "",
     header: "NO",
     cell: (props) => (
       <span className="text-sm text-gray-500 dark:text-neutral-400">
-        {props.row.index + 1}
+        {startIndex + props.row.index + 1}
       </span>
     ),
   },
@@ -271,6 +271,9 @@ const columnData = ({ mutate, navigate }) => [
 const Users = () => {
   const navigate = useNavigate();
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const fetcher = async () => {
     const auth = JSON.parse(sessionStorage.getItem("auth"));
     if (!auth) {
@@ -299,8 +302,16 @@ const Users = () => {
     });
   };
 
-  const columns = columnData({ mutate, navigate });
   const processedData = preprocessData(data);
+
+  const totalPages = Math.ceil((processedData?.length || 0) / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentData = processedData?.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
+
+  const columns = columnData({ mutate, navigate, startIndex });
 
   const handleDeleteAll = async () => {
     try {
@@ -364,6 +375,10 @@ const Users = () => {
       type: "application/octet-stream",
     });
     saveAs(blob, "Users.xlsx");
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   const onSubmit = async (values) => {
@@ -471,7 +486,9 @@ const Users = () => {
                         <button
                           type="button"
                           onClick={handleDeleteAll}
-                          className="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-gradient-to-r from-btnGold to-btnGold text-neutral-800 hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none"
+                          className={`${
+                            data.length === 0 ? "hidden" : "block"
+                          } py-2 px-3 inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-gradient-to-r from-btnGold to-btnGold text-neutral-800 hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none`}
                         >
                           <Trash2 size="16px" />
                           Delete User And Card
@@ -572,7 +589,7 @@ const Users = () => {
                     {/* <!-- Table --> */}
                     <Table
                       columnsData={columns}
-                      tableData={processedData || []}
+                      tableData={currentData || []}
                     />
                     {/* <!-- End Table --> */}
 
@@ -588,10 +605,12 @@ const Users = () => {
                       </div>
 
                       <div>
-                        <div className="inline-flex gap-x-2">
+                        <nav className="inline-flex rounded-md shadow-sm isolate space-x-2">
                           <button
                             type="button"
                             className="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-gold dark:text-gold dark:hover:bg-neutral-800"
+                            disabled={currentPage === 1}
+                            onClick={() => handlePageChange(currentPage - 1)}
                           >
                             <svg
                               className="flex-shrink-0 size-4"
@@ -609,10 +628,23 @@ const Users = () => {
                             </svg>
                             Prev
                           </button>
-
+                          {Array.from({ length: totalPages }, (_, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handlePageChange(index + 1)}
+                              className={`${
+                                currentPage === index + 1
+                                  ? "dark:text-neutral-900 dark:bg-btnGold dark:border-btnGold dark:hover:bg-btnGold"
+                                  : ""
+                              } py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-800 shadow-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-gold dark:text-gold dark:hover:bg-neutral-800`}
+                            >
+                              {index + 1}
+                            </button>
+                          ))}
                           <button
                             type="button"
                             className="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-gold dark:text-gold dark:hover:bg-neutral-800"
+                            onClick={() => handlePageChange(currentPage + 1)}
                           >
                             Next
                             <svg
@@ -630,7 +662,7 @@ const Users = () => {
                               <path d="m9 18 6-6-6-6" />
                             </svg>
                           </button>
-                        </div>
+                        </nav>
                       </div>
                     </div>
                     {/* <!-- End Footer --> */}

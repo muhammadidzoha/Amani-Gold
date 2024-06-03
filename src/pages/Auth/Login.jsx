@@ -127,12 +127,6 @@ const Login = () => {
                       </svg>
                     </div>
                   </div>
-                  <p
-                    className="hidden text-xs text-red-600 mt-2"
-                    id="password-error"
-                  >
-                    8+ characters required
-                  </p>
                 </div>
 
                 <button
